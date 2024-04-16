@@ -1,5 +1,3 @@
-
-import javax.naming.OperationNotSupportedException;
 import java.io.IOException;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -37,11 +35,7 @@ public class TFTPServer extends Thread{
             while (true)
             {
                 //Simply wait for a communication from a client
-                //If the communication is a valid request, start transmitting or receiving data in the connection class
-                //      This involves creating a new connection class instance that will either be receiving data or sending it
-                //      This is done on a new thread, so we can support multiple file requests at once
-                //      On the creation of this instance it needs to tell the client that the request has been accepted and what ports
-                //      To use for communication
+                //If the communication is a valid request, start transmitting data (actual data or acknowledgement packet) in the connection class
 
                 byte[] reqBuf = new byte[256];
                 DatagramPacket clientPak = new DatagramPacket(reqBuf, 256);
@@ -52,50 +46,35 @@ public class TFTPServer extends Thread{
                 int clientPort = clientPak.getPort();
 
                 //Convert the byte data into a string
-                String requestString = new String(clientPak.getData(), StandardCharsets.UTF_8);
-                String[] requestParts = requestString.split(",");
+                byte[] requestData = clientPak.getData();
+                //Get the first two bytes as the opcode
+                int opcode = requestData[1];
+                //We just assume the whole rest of the array is the file name, we can do this as we don't care about mode
+                //if we want this implementation to work with other TFTP implementations then we would need to only take the
+                //part of the array up to the next "buffer" byte
+                //This file is either the file being read or the file being written too
+                //i.e. it is the file the server "controls"
+                String targetFilename = new String(Arrays.copyOfRange(requestData, 2, requestData.length), StandardCharsets.UTF_8).trim();
+                System.out.println(targetFilename.length());
 
-                if (requestParts.length != 0)
+                //Need to open a connection thread
+                //We do this so we can support simultaneous file transfers
+                //A connection thread needs to know the client's TID / address so it can send the initial data
+                //It also needs its own new port / TID
+                //According to specification this should be randomized but for testing I'm just going to use a simpler method
+                //of continuously increasing the port number
+                if (opcode == 1)
                 {
-                    boolean actualValidOpertaion = false;
-                    //In both valid operation states we need to create our connection thread
-                    String operationType = requestParts[0].toLowerCase();
-                    if (operationType.equals("write") && requestParts.length == 3)
-                    {
-                        new TFTPConnection(TFTPConnection.ConnectionType.WRITE, clientAddress, clientPort, portNumber++, requestParts[2]).start();
-                        actualValidOpertaion = true;
-                    }
-                    else if (operationType.equals("read") && requestParts.length == 2)
-                    {
-                        new TFTPConnection(TFTPConnection.ConnectionType.READ, clientAddress, clientPort, portNumber++, requestParts[1]).start();
-                        actualValidOpertaion = true;
-                    }
-
-                    //Actually send response to client
-                    //Otherwise client just times out, this means if the server is broken then the client
-                    //doesn't just hang forever
-                    //We do this here rather than in the connection class as it makes more sense
-                    //structurally in my mind, the client is also still listening for a response
-                    //on the main 9906 port
-                    //Reuse the client packet here
-                    if (actualValidOpertaion)
-                    {
-                        String responseString = "" + portNumber;
-                        reqBuf = new byte[responseString.length()];
-                        System.arraycopy(responseString.getBytes(), 0, reqBuf, 0,  responseString.length());
-
-                        clientPak.setData(reqBuf);
-
-                        clientPak.setAddress(clientAddress);
-                        clientPak.setPort(clientPort);
-
-                        communicationSocket.send(clientPak);
-                    }
+                    //read
+                    new TFTPConnection(TFTPConnection.ConnectionType.READ, clientAddress, clientPort, portNumber++, targetFilename).start();
+                }
+                else if (opcode == 2)
+                {
+                    //write
+                    new TFTPConnection(TFTPConnection.ConnectionType.WRITE, clientAddress, clientPort, portNumber++, targetFilename).start();
                 }
 
                 System.out.println(clientAddress.toString());
-                System.out.println(requestString);
-                System.out.println("");
             }
         }
         catch (Exception e)
