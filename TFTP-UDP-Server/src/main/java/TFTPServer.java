@@ -55,7 +55,6 @@ public class TFTPServer extends Thread{
                 //This file is either the file being read or the file being written too
                 //i.e. it is the file the server "controls"
                 String targetFilename = new String(Arrays.copyOfRange(requestData, 2, requestData.length), StandardCharsets.UTF_8).trim();
-                System.out.println(targetFilename.length());
 
                 //Need to open a connection thread
                 //We do this so we can support simultaneous file transfers
@@ -73,8 +72,6 @@ public class TFTPServer extends Thread{
                     //write
                     new TFTPConnection(TFTPConnection.ConnectionType.WRITE, clientAddress, clientPort, portNumber++, targetFilename).start();
                 }
-
-                System.out.println(clientAddress.toString());
             }
         }
         catch (Exception e)
