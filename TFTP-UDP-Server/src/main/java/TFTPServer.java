@@ -2,6 +2,7 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Random;
 
 public class TFTPServer extends Thread{
     protected DatagramSocket communicationSocket = null;
@@ -65,12 +66,12 @@ public class TFTPServer extends Thread{
                 if (opcode == 1)
                 {
                     //read
-                    new TFTPConnection(TFTPConnection.ConnectionType.READ, clientAddress, clientPort, portNumber++, targetFilename).start();
+                    new TFTPConnection(TFTPConnection.ConnectionType.READ, clientAddress, clientPort, generateNewPortNumber(), targetFilename).start();
                 }
                 else if (opcode == 2)
                 {
                     //write
-                    new TFTPConnection(TFTPConnection.ConnectionType.WRITE, clientAddress, clientPort, portNumber++, targetFilename).start();
+                    new TFTPConnection(TFTPConnection.ConnectionType.WRITE, clientAddress, clientPort, generateNewPortNumber(), targetFilename).start();
                 }
             }
         }
@@ -87,5 +88,15 @@ public class TFTPServer extends Thread{
         //We use the argumentless constructor
         new TFTPServer().start();
         System.out.println("Server started!");
+    }
+
+    private static int generateNewPortNumber()
+    {
+        //Pick random port number across a large amount of values, this almost guarantees that there will be no conflicts between clients
+        //Done as described in the protocol specification
+        //Upper bound of 20k
+        //lower bound of 10.001k
+        //lower bound was chosen based on client port bounds
+        return new Random().nextInt(20000 - 10001) + 10001;
     }
 }

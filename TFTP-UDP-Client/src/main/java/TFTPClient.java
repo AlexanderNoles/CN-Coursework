@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.Random;
 
 public class TFTPClient {
 
@@ -29,8 +30,7 @@ public class TFTPClient {
             boolean applicationRunning = true;
             while (applicationRunning)
             {
-                System.out.println("\n");
-                System.out.println("Type:");
+                System.out.println("Options, type:");
                 System.out.println("1, to retrieve file");
                 System.out.println("2, to store file");
                 System.out.println("3, to exit");
@@ -96,9 +96,11 @@ public class TFTPClient {
         System.arraycopy(serverControlledTargetFilename.getBytes(), 0, buffer, 2, filenameLength);
 
         //bind socket to different port than server
-        //We need to check if this port is currently being used by a different client at some point
-        //probably by randomising the socket number between some huge set of random values
-        DatagramSocket mainSocket = new DatagramSocket(9900);
+        //Pick random port number across a large amount of values, this almost guarantees that there will be no conflicts between clients
+        //Done as described in the protocol specification
+        //Upper bound of 10k
+        //lower bound of 1024
+        DatagramSocket mainSocket = new DatagramSocket(new Random().nextInt(10000 - 1024) + 1024);
 
         InetAddress address = InetAddress.getByName(hostname);
         DatagramPacket requestPack = new DatagramPacket(buffer, buffer.length);
@@ -164,7 +166,6 @@ public class TFTPClient {
                         acknowledgementPacket.setData(acknowledgementBuffer);
 
                         mainSocket.send(acknowledgementPacket);
-                        System.out.println("ACK Sent");
                     }
 
                     try
@@ -194,13 +195,9 @@ public class TFTPClient {
                         {
                             correctDataBlock = true;
 
-                            String stringOutput = new String(blockData, StandardCharsets.UTF_8).trim();
-
                             //Need to actually write the data
 
                             outputStream.write(blockData, 4, blockSize);
-
-                            System.out.println(stringOutput.length());
 
                             if (blockData[515] == 0)
                             {
@@ -338,7 +335,6 @@ public class TFTPClient {
                                 {
                                     acknowledgementReceived = true;
                                     blockNumber++; //Update block number now we have received ack packet
-                                    System.out.println("ACK Received");
                                 }
                             }
                             else if (acknowledgementData[1] == 5)
@@ -372,7 +368,7 @@ public class TFTPClient {
             System.out.println(errorText);
         }
 
-        System.out.println("Process ended");
+        System.out.println("[Command Run Successfully]");
         mainSocket.close();
     }
 }

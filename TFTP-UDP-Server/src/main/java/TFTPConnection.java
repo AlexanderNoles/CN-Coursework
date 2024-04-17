@@ -74,7 +74,7 @@ public class TFTPConnection extends Thread{
 
     @Override
     public void run() {
-        System.out.println(type);
+        System.out.println(type + " Command Issued");
         final int blockSize = 512;
         int blockNumber = 0;
         //In read case we need to immediately send the first block of data and then wait for acknowledgement from the client
@@ -176,7 +176,6 @@ public class TFTPConnection extends Thread{
                                 if (sentBlockNumber == blockNumber)
                                 {
                                     acknowledgementReceived = true;
-                                    System.out.println("ACK Received");
                                 }
                             }
 
@@ -251,10 +250,6 @@ public class TFTPConnection extends Thread{
                         lastDataReceived = true;
                         System.out.println("File could not be written to!");
                     }
-                    else
-                    {
-                        System.out.println("ACK Sent");
-                    }
 
                     acknowledgementAndErrorPacket.setData(returnBuffer);
 
@@ -326,10 +321,9 @@ public class TFTPConnection extends Thread{
             }
         }
 
+        System.out.println(getName() + " (PORT: " + connectionSocket.getLocalPort() + ") terminated!");
         //Immediately close for testing reason
         connectionSocket.close();
-
-        System.out.println(getName() + " terminated!");
     }
 
 
