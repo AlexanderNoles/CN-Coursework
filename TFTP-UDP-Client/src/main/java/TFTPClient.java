@@ -45,13 +45,13 @@ public class TFTPClient {
                 {
                     System.out.println("Enter name of file to retrieve:");
                     serverControlledTargetFilename = scanner.nextLine();
-                    System.out.println("Enter name of file to write retrieved file to:");
+                    System.out.println("Enter name of file to write retrieved file to (file will be created if it doesn't exist):");
                     clientControlledTargetFilename = scanner.nextLine();
                     runTFTPCommand(Command.READ);
                 }
                 else if (Objects.equals(input, "2"))
                 {
-                    System.out.println("Enter name of file to write to:");
+                    System.out.println("Enter name of file to write to (file will be created if it doesn't exist):");
                     serverControlledTargetFilename = scanner.nextLine();
                     System.out.println("Enter name of file to write from:");
                     clientControlledTargetFilename = scanner.nextLine();

@@ -321,10 +321,18 @@ public class TFTPConnection extends Thread{
             }
         }
 
-        System.out.println(getName() + " (PORT: " + connectionSocket.getLocalPort() + ") terminated!");
+        String outputEnding;
+        if (throwError)
+        {
+            outputEnding = ") terminated with error!";
+        }
+        else
+        {
+            outputEnding = ") terminated successfully!";
+        }
+
+        System.out.println(getName() + " (PORT: " + connectionSocket.getLocalPort() + outputEnding);
         //Immediately close for testing reason
         connectionSocket.close();
     }
-
-
 }
