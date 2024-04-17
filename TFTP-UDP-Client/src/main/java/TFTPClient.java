@@ -1,32 +1,85 @@
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class TFTPClient {
 
-    public static void main(String[] args) throws IOException {
-
-        if (args.length < 2)
+    public static void main(String[] args) {
+        String input = "";
+        try(Scanner scanner = new Scanner(System.in))
         {
-            return;
-        }
+            //Start console application
+            System.out.println("Client Started!");
+            System.out.println("Enter server hostname (leave empty for default):");
+            input = scanner.nextLine();
+            if (input.isEmpty())
+            {
+                hostname = "127.0.0.1";
+            }
+            else
+            {
+                hostname = input;
+            }
 
-        //Convert initial input command into request packet
-        //args[0] is the host name so wee ignore that
-        //args[1] is the request type
-        String requestType = args[1].toLowerCase();
+
+            boolean applicationRunning = true;
+            while (applicationRunning)
+            {
+                System.out.println("\n");
+                System.out.println("Type:");
+                System.out.println("1, to retrieve file");
+                System.out.println("2, to store file");
+                System.out.println("3, to exit");
+
+                input = scanner.nextLine();
+
+                if (Objects.equals(input, "3"))
+                {
+                    applicationRunning = false;
+                }
+                else if (Objects.equals(input, "1"))
+                {
+                    System.out.println("Enter name of file to retrieve:");
+                    serverControlledTargetFilename = scanner.nextLine();
+                    System.out.println("Enter name of file to write retrieved file to:");
+                    clientControlledTargetFilename = scanner.nextLine();
+                    runTFTPCommand(Command.READ);
+                }
+                else if (Objects.equals(input, "2"))
+                {
+                    System.out.println("Enter name of file to write to:");
+                    serverControlledTargetFilename = scanner.nextLine();
+                    System.out.println("Enter name of file to write from:");
+                    clientControlledTargetFilename = scanner.nextLine();
+                    runTFTPCommand(Command.WRITE);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private enum Command{
+        READ,
+        WRITE
+    }
+
+    private static String clientControlledTargetFilename;
+    private static String hostname;
+    private static String serverControlledTargetFilename;
+
+    public static void runTFTPCommand(Command command) throws IOException {
         byte[] buffer = new byte[256];
 
-        if (requestType.equals("read"))
+        if (command == Command.READ)
         {
             buffer[1] = (byte)1;
         }
-        else if(requestType.equals("write"))
+        else if(command == Command.WRITE)
         {
             buffer[1] = (byte)2;
         }
@@ -39,16 +92,15 @@ public class TFTPClient {
         buffer[0] = (byte)0;
 
         //args[2] is the target filename
-        String filename = args[2];
-        int filenameLength = filename.length();
-        System.arraycopy(filename.getBytes(), 0, buffer, 2, filenameLength);
+        int filenameLength = serverControlledTargetFilename.length();
+        System.arraycopy(serverControlledTargetFilename.getBytes(), 0, buffer, 2, filenameLength);
 
         //bind socket to different port than server
         //We need to check if this port is currently being used by a different client at some point
         //probably by randomising the socket number between some huge set of random values
         DatagramSocket mainSocket = new DatagramSocket(9900);
 
-        InetAddress address = InetAddress.getByName(args[0]);
+        InetAddress address = InetAddress.getByName(hostname);
         DatagramPacket requestPack = new DatagramPacket(buffer, buffer.length);
         requestPack.setAddress(address);
         requestPack.setPort(9906); //Server base communication port, used for creating requests
@@ -61,8 +113,17 @@ public class TFTPClient {
         boolean errorThrown = false;
         String errorText = "Error";
 
-        if (requestType.equals("read"))
+        if (command == Command.READ)
         {
+            File targetFile = new File(clientControlledTargetFilename);
+            FileOutputStream outputStream = null;
+            try {
+                outputStream = new FileOutputStream(targetFile);
+            }
+            catch (IOException e){
+                throw new IOException(e);
+            }
+
             boolean addressReceived = false;
             int blockNumber = 1;
             //We use a boolean instead of a while(true) and break as I feel it is more descriptive
@@ -129,14 +190,14 @@ public class TFTPClient {
                         {
                             correctDataBlock = true;
 
-                            //Get output data
-                            byte[] outputData = Arrays.copyOfRange(blockData, 4, blockData.length);
+                            String stringOutput = new String(blockData, StandardCharsets.UTF_8).trim();
 
-                            String stringOutput = new String(outputData, StandardCharsets.UTF_8).trim();
+                            //Need to actually write the data
+                            outputStream.write(blockData, 4, blockSize);
+
                             System.out.println(stringOutput.length());
 
-                            //This is an awful way to do this, but I am tired :(
-                            if (stringOutput.length() < 500)
+                            if (blockData[515] == 0)
                             {
                                 //Final block data has been sent
                                 lastDataReceived = true;
@@ -163,13 +224,15 @@ public class TFTPClient {
                     }
                 }
             }
+            //Close our output stream
+            outputStream.close();
         }
         else
         {
             int blockNumber = 0;
             //Write operation
             //Setup up input stream
-            File targetFile = new File(args[3]);
+            File targetFile = new File(clientControlledTargetFilename);
             FileInputStream inputStream = null;
             try {
                 inputStream = new FileInputStream(targetFile);
@@ -200,7 +263,7 @@ public class TFTPClient {
 
                     //Start data at 4, skipping over opcode and block #
                     int bufferIndex = 4;
-                    while (bufferIndex < blockSize)
+                    while (bufferIndex < blockSize + 4)
                     {
                         try {
                             int nextByte = inputStream.read();
@@ -294,6 +357,9 @@ public class TFTPClient {
                     }
                 }
             }
+
+            //Close our input stream
+            inputStream.close();
         }
 
         if (errorThrown)

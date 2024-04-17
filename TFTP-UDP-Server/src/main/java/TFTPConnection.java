@@ -106,9 +106,8 @@ public class TFTPConnection extends Thread{
                     //We don't do this for the opcode because it is constant
                     bufferToSend[2] = (byte)((blockNumber >> 8) & 0xFF);
                     bufferToSend[3] = (byte)(blockNumber & 0xFF);
-                    System.out.println(blockNumber);
 
-                    while (bufferIndex < blockSize)
+                    while (bufferIndex < blockSize + 4)
                     {
                         try {
                             int nextByte = fileInputStream.read();
@@ -137,7 +136,6 @@ public class TFTPConnection extends Thread{
                     System.out.println("File could not be read from!");
                 }
 
-
                 //Send packet
                 DatagramPacket dataPacket = new DatagramPacket(bufferToSend, bufferIndex);
 
@@ -155,7 +153,11 @@ public class TFTPConnection extends Thread{
                     try
                     {
                         connectionSocket.send(dataPacket);
-                        if (lastDataSent) break; //Break early if it is the last data to be sent
+                        if (lastDataSent)
+                        {
+                            //Break early if it is the last data to be sent
+                            break;
+                        }
 
                         try
                         {
@@ -179,7 +181,10 @@ public class TFTPConnection extends Thread{
                             }
 
                         }
-                        catch (SocketTimeoutException ignored){ }
+                        catch (SocketTimeoutException e)
+                        {
+                            System.out.println(e);
+                        }
                     }
                     catch (IOException e)
                     {
@@ -277,15 +282,10 @@ public class TFTPConnection extends Thread{
                         {
                             correctDataBlock = true;
 
-                            //Get output data
-                            byte[] outputData = Arrays.copyOfRange(blockData, 4, blockData.length);
+                            //Need to actually write the data
+                            fileOutputStream.write(blockData, 4, blockSize);
 
-                            String stringOutput = new String(outputData, StandardCharsets.UTF_8).trim();
-
-                            System.out.println(stringOutput);
-
-                            //Once again, not a great way to do this
-                            if (stringOutput.length() < 500)
+                            if (blockData[515] == 0)
                             {
                                 lastDataReceived = true;
                             }
@@ -310,6 +310,18 @@ public class TFTPConnection extends Thread{
                             throw new RuntimeException(e);
                         }
                     }
+                }
+            }
+
+            try {
+                fileOutputStream.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } catch (NullPointerException e){
+                //Throw error refers to the error packet, this check is to see if this null pointer exception was expected
+                if (!throwError)
+                {
+                    throw new RuntimeException(e);
                 }
             }
         }
