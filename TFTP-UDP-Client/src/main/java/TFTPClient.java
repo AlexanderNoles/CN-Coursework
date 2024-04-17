@@ -116,6 +116,10 @@ public class TFTPClient {
         if (command == Command.READ)
         {
             File targetFile = new File(clientControlledTargetFilename);
+
+            //See if the file exists and if it doesn't create it
+            targetFile.createNewFile();
+
             FileOutputStream outputStream = null;
             try {
                 outputStream = new FileOutputStream(targetFile);
@@ -193,6 +197,7 @@ public class TFTPClient {
                             String stringOutput = new String(blockData, StandardCharsets.UTF_8).trim();
 
                             //Need to actually write the data
+
                             outputStream.write(blockData, 4, blockSize);
 
                             System.out.println(stringOutput.length());
