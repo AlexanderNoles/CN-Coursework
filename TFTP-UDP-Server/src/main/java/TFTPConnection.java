@@ -21,6 +21,7 @@ public class TFTPConnection extends Thread{
     private InputStream fileInputStream;
     private OutputStream fileOutputStream;
     private boolean throwError;
+    private int errorCode;
 
     public TFTPConnection(ConnectionType type, InetAddress clientAddress, int clientPort, int newSocketNumber, String targetFilename) throws SocketException {
         this.type = type;
@@ -54,6 +55,7 @@ public class TFTPConnection extends Thread{
                 //This happens if we can't read the file, we should notify
                 //the client with an error packet
                 throwError = true;
+                errorCode = 1;
             }
         }
         else
@@ -68,6 +70,7 @@ public class TFTPConnection extends Thread{
                 //This happens if we can't create/access the file
                 //We should notify the client with an error packet
                 throwError = true;
+                errorCode = 2;
             }
         }
     }
@@ -111,6 +114,7 @@ public class TFTPConnection extends Thread{
                     {
                         try {
                             int nextByte = fileInputStream.read();
+
                             if (nextByte == -1)
                             {
                                 lastDataSent = true;
@@ -130,6 +134,7 @@ public class TFTPConnection extends Thread{
                 else
                 {
                     bufferToSend[1] = 5; //Error opcode
+                    bufferToSend[3] = (byte)errorCode;
                     //Then we want to end the operation after we have sent the error packet
                     //We can do this by saying this error packet is the last data
                     lastDataSent = true;
@@ -246,6 +251,7 @@ public class TFTPConnection extends Thread{
                     if (throwError)
                     {
                         returnBuffer[1] = 5; //Error opcode
+                        returnBuffer[3] = (byte)errorCode;//Error code
                         //Quit early after error has been thrown
                         lastDataReceived = true;
                         System.out.println("File could not be written to!");
@@ -277,10 +283,7 @@ public class TFTPConnection extends Thread{
                         {
                             correctDataBlock = true;
 
-                            //Need to actually write the data
-                            fileOutputStream.write(blockData, 4, blockSize);
-
-                            if (blockData[515] == 0)
+                            if (blockData[blockSize+3] == 0)
                             {
                                 lastDataReceived = true;
                             }
@@ -288,6 +291,27 @@ public class TFTPConnection extends Thread{
                             {
                                 blockNumber++;
                             }
+
+                            //Need to actually write the data
+                            //Need to remove ending blank spaces if this was the last data received
+                            //Otherwise they will also be written to the file
+                            int lengthOfActualData = blockSize;
+
+                            if (lastDataReceived)
+                            {
+                                //Accounting for the discrepancy between blockSize and length of the data
+                                //caused by opcode and block #
+                                lengthOfActualData += 2;
+                                for (int i = blockSize+3; i >= 0; i--)
+                                {
+                                    if (blockData[i] == 0)
+                                    {
+                                        lengthOfActualData--;
+                                    }
+                                }
+                            }
+
+                            fileOutputStream.write(blockData, 4, lengthOfActualData);
                         }
                     }
                     catch (SocketException e)

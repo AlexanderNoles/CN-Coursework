@@ -53,8 +53,16 @@ public class TFTPClient {
                 {
                     System.out.println("Enter name of file to write to (file will be created if it doesn't exist):");
                     serverControlledTargetFilename = scanner.nextLine();
+
                     System.out.println("Enter name of file to write from:");
                     clientControlledTargetFilename = scanner.nextLine();
+
+                    if (!new File(clientControlledTargetFilename).exists())
+                    {
+                        System.out.println("File does not exist!");
+                        continue;
+                    }
+
                     runTFTPCommand(Command.WRITE);
                 }
             }
@@ -105,7 +113,7 @@ public class TFTPClient {
         InetAddress address = InetAddress.getByName(hostname);
         DatagramPacket requestPack = new DatagramPacket(buffer, buffer.length);
         requestPack.setAddress(address);
-        requestPack.setPort(9906); //Server base communication port, used for creating requests
+        requestPack.setPort(20001); //Server base communication port, used for creating requests
 
         mainSocket.send(requestPack);
 
@@ -195,11 +203,7 @@ public class TFTPClient {
                         {
                             correctDataBlock = true;
 
-                            //Need to actually write the data
-
-                            outputStream.write(blockData, 4, blockSize);
-
-                            if (blockData[515] == 0)
+                            if (blockData[blockSize+3] == 0)
                             {
                                 //Final block data has been sent
                                 lastDataReceived = true;
@@ -208,6 +212,27 @@ public class TFTPClient {
                             {
                                 blockNumber++;
                             }
+
+                            //Need to actually write the data
+                            //Need to remove ending blank spaces if this was the last data received
+                            //Otherwise they will also be written to the file
+                            int lengthOfActualData = blockSize;
+
+                            if (lastDataReceived)
+                            {
+                                //Accounting for the discrepancy between blockSize and length of the data
+                                //caused by opcode and block #
+                                lengthOfActualData += 2;
+                                for (int i = blockSize+3; i >= 0; i--)
+                                {
+                                    if (blockData[i] == 0)
+                                    {
+                                        lengthOfActualData--;
+                                    }
+                                }
+                            }
+
+                            outputStream.write(blockData, 4, lengthOfActualData);
                         }
                         else if (blockData[1] == 5)
                         {
@@ -243,18 +268,18 @@ public class TFTPClient {
                 throw new IOException(e);
             }
 
-            //Buffer to send
-            byte[] bufferToSend = new byte[blockSize+4];
             byte[] acknowledgementBuffer = new byte[4];
 
             //Setup initial buffer data
-            //OPCODE
-            bufferToSend[0] = 0;
-            bufferToSend[1] = 3;
 
             boolean lastDataSent = false;
             while (!lastDataSent)
             {
+                //Buffer to send
+                byte[] bufferToSend = new byte[blockSize+4];
+                //OPCODE
+                bufferToSend[0] = 0;
+                bufferToSend[1] = 3;
                 //Generate data block
                 //In the case of the 0block ack packet we don't want to send data first
                 DatagramPacket dataPacket = null;

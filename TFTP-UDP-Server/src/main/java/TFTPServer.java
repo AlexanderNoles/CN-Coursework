@@ -6,7 +6,7 @@ import java.util.Random;
 
 public class TFTPServer extends Thread{
     protected DatagramSocket communicationSocket = null;
-    private int portNumber = 9906;
+    private int portNumber = 20001;
 
 
     //Constructors
@@ -23,6 +23,8 @@ public class TFTPServer extends Thread{
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             //Ensure socket is closed when terminal is closed
+            //This means the port will be always free when we run the server again
+            //unless it is being used by another process
             communicationSocket.close();
         }));
     }
@@ -61,8 +63,7 @@ public class TFTPServer extends Thread{
                 //We do this so we can support simultaneous file transfers
                 //A connection thread needs to know the client's TID / address so it can send the initial data
                 //It also needs its own new port / TID
-                //According to specification this should be randomized but for testing I'm just going to use a simpler method
-                //of continuously increasing the port number
+                //According to specification this should be randomized
                 if (opcode == 1)
                 {
                     //read
