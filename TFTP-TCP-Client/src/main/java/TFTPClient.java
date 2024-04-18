@@ -195,6 +195,7 @@ public class TFTPClient {
                 {
                     //Write new data to buffer
                     //Send buffer
+                    //Reset the buffer each iteration
                     byte[] bufferToSend = new byte[blockSize+4];
                     //OPCODE
                     bufferToSend[0] = 0;
