@@ -178,7 +178,7 @@ public class TFTPClient {
 
                     try
                     {
-                        mainSocket.setSoTimeout(2000);
+                        mainSocket.setSoTimeout(1000);
                         mainSocket.receive(receiverPacket);
 
                         if (!addressReceived)

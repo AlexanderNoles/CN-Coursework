@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Objects;
 import java.util.Scanner;
@@ -132,7 +133,16 @@ public class TFTPClient {
                     //it is kept to be inline with the specification
                     byte[] receiverBuffer = new byte[blockSize +4];
 
-                    inFromServer.read(receiverBuffer);
+                    clientSocket.setSoTimeout(10000);
+                    try
+                    {
+                        inFromServer.read(receiverBuffer);
+                    }
+                    catch (SocketException e)
+                    {
+                        //If after 10 seconds no reply break from loop
+                        break;
+                    }
 
                     if (receiverBuffer[1] == 3)
                     {
@@ -185,8 +195,6 @@ public class TFTPClient {
                 catch (IOException e){
                     throw new IOException(e);
                 }
-
-
 
                 int blockNumber = 0;
 
