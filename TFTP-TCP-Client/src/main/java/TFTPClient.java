@@ -133,16 +133,7 @@ public class TFTPClient {
                     //it is kept to be inline with the specification
                     byte[] receiverBuffer = new byte[blockSize +4];
 
-                    clientSocket.setSoTimeout(10000);
-                    try
-                    {
-                        inFromServer.read(receiverBuffer);
-                    }
-                    catch (SocketException e)
-                    {
-                        //If after 10 seconds no reply break from loop
-                        break;
-                    }
+                    inFromServer.read(receiverBuffer);
 
                     if (receiverBuffer[1] == 3)
                     {
